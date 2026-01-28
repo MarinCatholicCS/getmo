@@ -481,7 +481,8 @@ hr {
 
 .tile.tile-32 .tile-inner {
   color: #f9f6f2;
-  background: #f67c5f;
+  background-image: url("images/mo32.jpg");
+  background-size: 107px 107px;
 }
 
 .tile.tile-64 .tile-inner {
