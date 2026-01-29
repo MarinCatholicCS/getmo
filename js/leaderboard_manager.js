@@ -216,11 +216,19 @@ LeaderboardManager.prototype.updatePermanentLeaderboard = function() {
       else if (index === 1) medal = '🥈';
       else if (index === 2) medal = '🥉';
       
+      // Format the timestamp
+      var formattedDate = '';
+      if (entry.timestamp) {
+        var date = new Date(entry.timestamp);
+        formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      }
+      
       html += `
         <li>
           <span class="rank">${medal}</span>
           <span class="player-name">${entry.name}</span>
           <span class="player-score">${entry.score}</span>
+          <span class="player-timestamp">${formattedDate}</span>
         </li>
       `;
     });

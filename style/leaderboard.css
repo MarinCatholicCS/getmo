@@ -109,23 +109,6 @@
   min-height: 20px;
 }
 
-.new-game-btn {
-  width: 100%;
-  padding: 15px;
-  font-size: 18px;
-  font-weight: bold;
-  color: #f9f6f2;
-  background: #776e65;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.new-game-btn:hover {
-  background: #8f7a66;
-}
-
 .error {
   color: #ed5565;
   text-align: center;
@@ -149,7 +132,7 @@
     font-size: 24px;
   }
   
-  #player-name, #submit-score-btn, .new-game-btn {
+  #player-name, #submit-score-btn {
     padding: 12px;
     font-size: 16px;
   }
@@ -215,20 +198,40 @@
 .permanent-leaderboard-entries .rank {
   width: 30px;
   font-size: 18px;
+  flex-shrink: 0;
+}
+
+.permanent-leaderboard-entries .player-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-right: 10px;
 }
 
 .permanent-leaderboard-entries .player-name {
-  flex: 1;
   color: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: bold;
+}
+
+.permanent-leaderboard-entries .player-timestamp {
+  font-size: 12px;
+  color: rgba(119, 110, 101, 0.7);
+  margin-top: 2px;
+}
+
+.permanent-leaderboard-entries li:nth-child(1) .player-timestamp,
+.permanent-leaderboard-entries li:nth-child(3) .player-timestamp {
+  color: rgba(255, 255, 255, 0.8);
 }
 
 .permanent-leaderboard-entries .player-score {
   font-weight: bold;
   color: inherit;
-  margin-left: 10px;
+  flex-shrink: 0;
 }
 
 .refresh-btn {
@@ -272,5 +275,9 @@
   .permanent-leaderboard-entries .rank {
     width: 25px;
     font-size: 16px;
+  }
+  
+  .permanent-leaderboard-entries .player-timestamp {
+    font-size: 11px;
   }
 }
