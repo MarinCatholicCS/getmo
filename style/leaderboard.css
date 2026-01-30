@@ -136,20 +136,22 @@
   .leaderboard-modal {
     padding: 20px;
   }
-  
+
   .leaderboard-modal h2 {
     font-size: 32px;
   }
-  
+
   .final-score {
     font-size: 18px;
   }
-  
+
   .final-score strong {
     font-size: 24px;
   }
-  
-  #player-name, #submit-score-btn, .close-modal-btn {
+
+  #player-name,
+  #submit-score-btn,
+  .close-modal-btn {
     padding: 12px;
     font-size: 16px;
   }
@@ -251,8 +253,15 @@
   flex-shrink: 0;
 }
 
-.refresh-btn {
-  width: 100%;
+.leaderboard-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.refresh-btn,
+.view-all-btn {
+  flex: 1;
   padding: 10px;
   font-size: 14px;
   font-weight: bold;
@@ -264,7 +273,8 @@
   transition: background 0.2s;
 }
 
-.refresh-btn:hover {
+.refresh-btn:hover,
+.view-all-btn:hover {
   background: #9f8a76;
 }
 
@@ -275,26 +285,195 @@
   font-style: italic;
 }
 
+/* All Scores Modal */
+.all-scores-modal {
+  max-width: 600px;
+}
+
+.filter-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  justify-content: center;
+}
+
+.filter-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #776e65;
+  background: #eee4da;
+  border: 2px solid #bbada0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  background: #e0d8c8;
+}
+
+.filter-btn.active {
+  background: #8f7a66;
+  color: #f9f6f2;
+  border-color: #8f7a66;
+}
+
+.all-scores-list {
+  background: #eee4da;
+  padding: 15px;
+  border-radius: 4px;
+  min-height: 400px;
+  max-height: 500px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.all-scores-entries {
+  list-style: decimal;
+  padding: 0;
+  margin: 0;
+  padding-left: 30px;
+}
+
+.all-scores-entries li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: #faf8ef;
+  border-radius: 4px;
+  font-size: 15px;
+}
+
+.all-scores-entries .player-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  margin-right: 10px;
+}
+
+.all-scores-entries .player-name {
+  color: #776e65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+}
+
+.all-scores-entries .player-timestamp {
+  font-size: 12px;
+  color: rgba(119, 110, 101, 0.7);
+  margin-top: 2px;
+}
+
+.all-scores-entries .player-score {
+  font-weight: bold;
+  color: #776e65;
+  flex-shrink: 0;
+}
+
+.pagination-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.page-btn {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #f9f6f2;
+  background: #8f7a66;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: #9f8a76;
+}
+
+.page-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+#page-info {
+  color: #776e65;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.loading {
+  text-align: center;
+  color: #776e65;
+  padding: 20px;
+  font-style: italic;
+}
+
 @media (max-width: 520px) {
   .permanent-leaderboard {
     margin: 20px 10px;
   }
-  
+
   .permanent-leaderboard h3 {
     font-size: 20px;
   }
-  
+
   .permanent-leaderboard-entries li {
     font-size: 14px;
     padding: 8px 10px;
   }
-  
+
   .permanent-leaderboard-entries .rank {
     width: 25px;
     font-size: 16px;
   }
-  
+
   .permanent-leaderboard-entries .player-timestamp {
     font-size: 11px;
+  }
+
+  .all-scores-modal {
+    max-width: 95%;
+  }
+
+  .filter-controls {
+    flex-direction: column;
+  }
+
+  .filter-btn {
+    width: 100%;
+  }
+
+  .all-scores-list {
+    max-height: 350px;
+  }
+
+  .all-scores-entries {
+    padding-left: 20px;
+  }
+
+  .all-scores-entries li {
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+
+  .all-scores-entries .player-timestamp {
+    font-size: 11px;
+  }
+
+  .page-btn {
+    padding: 8px 15px;
+    font-size: 13px;
+  }
+
+  #page-info {
+    font-size: 14px;
   }
 }
