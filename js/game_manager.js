@@ -47,6 +47,8 @@ GameManager.prototype.setup = function () {
     this.gameStart = previousState.gameStart;
     this.grids = previousState.grids;
     this.timeStamps = previousState.timeStamps;
+    this.scoreStamps = previousState.scoreStamps;
+
   } else {
     this.grid = new Grid(this.size);
     this.score = 0;
@@ -58,6 +60,7 @@ GameManager.prototype.setup = function () {
     this.grids = [];
     this.timeStamps = [];
     this.timeStamps.push(this.gameStart);
+    this.scoreStamps = [];
 
     // Add the initial tiles
     this.addStartTiles();
@@ -119,7 +122,8 @@ GameManager.prototype.serialize = function () {
     turnCount: this.turnCount,
     gameStart: this.gameStart,
     grids: this.grids,
-    timeStamps: this.timeStamps
+    timeStamps: this.timeStamps,
+    scoreStamps: this.scoreStamps
 
   };
 };
@@ -180,6 +184,8 @@ GameManager.prototype.move = function (direction) {
 
           // Update the score
           self.score += merged.value;
+          self.scoreStamps.push(merged.value);
+
 
           // The mighty 2048 tile
           if (merged.value === 2048) self.won = true;
@@ -207,7 +213,7 @@ GameManager.prototype.move = function (direction) {
       var self = this;
       setTimeout(function () {
         if (window.gameLeaderboard) {
-          window.gameLeaderboard.showLeaderboardModal(self.score, self.turnCount, self.gameStart, self.grid, self.grids, self.timeStamps);
+          window.gameLeaderboard.showLeaderboardModal(self.score, self.turnCount, self.gameStart, self.grid, self.grids, self.timeStamps, self.scoreStamps);
         }
       }, 500); // Small delay so user can see final move
     }

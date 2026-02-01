@@ -58,7 +58,7 @@ LeaderboardManager.prototype.validateSubmission = function (name, score, turns) 
 };
 
 // Submit a score to the leaderboard
-LeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, grid, grids, timeStamps, callback) {
+LeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, grid, grids, timeStamps, scoreStamps, callback) {
   var self = this;
 
   // Validate before submitting
@@ -76,7 +76,6 @@ LeaderboardManager.prototype.submitScore = function (name, score, turns, gameSta
   }
   this.recentSubmissions[name].push(Date.now());
 
-
   fetch(this.scriptUrl, {
     method: 'POST',
     mode: 'no-cors', // Required for Google Apps Script
@@ -90,10 +89,12 @@ LeaderboardManager.prototype.submitScore = function (name, score, turns, gameSta
       gameStart: gameStart,
       grid: grid,
       grids: grids,
-      timeStamps: timeStamps
+      timeStamps: timeStamps,
+      scoreStamps: scoreStamps,
     })
   })
     .then(function () {
+
       // no-cors means we can't read the response
       // If it doesn't throw an error, we assume it worked
       if (callback) callback(null, { status: 'success' });
@@ -132,7 +133,7 @@ LeaderboardManager.prototype.getAllScores = function (callback) {
 };
 
 // Show leaderboard modal
-LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid, grids, timeStamps) {
+LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid, grids, timeStamps, scoreStamps) {
   var self = this;
 
   var container = document.querySelector('.container');
@@ -197,7 +198,7 @@ LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turn
     messageEl.textContent = 'Submitting...';
     messageEl.style.color = '#776e65';
 
-    self.submitScore(name, currentScore, turnCount, gameStart, grid, grids, timeStamps, function (error, result) {
+    self.submitScore(name, currentScore, turnCount, gameStart, grid, grids, timeStamps, scoreStamps, function (error, result) {
       if (error) {
         messageEl.textContent = 'Failed: ' + error.message;
         messageEl.style.color = '#ed5565';
