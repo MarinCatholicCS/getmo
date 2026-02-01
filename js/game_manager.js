@@ -197,7 +197,7 @@ GameManager.prototype.move = function (direction) {
       var self = this;
       setTimeout(function () {
         if (window.gameLeaderboard) {
-          window.gameLeaderboard.showLeaderboardModal(self.score, self.turnCount, self.gameStart);
+          window.gameLeaderboard.showLeaderboardModal(self.score, self.turnCount, self.gameStart, self.grid);
         }
       }, 500); // Small delay so user can see final move
     }

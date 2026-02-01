@@ -58,7 +58,7 @@ LeaderboardManager.prototype.validateSubmission = function (name, score, turns) 
 };
 
 // Submit a score to the leaderboard
-LeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, callback) {
+LeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, grid, callback) {
   var self = this;
 
   // Validate before submitting
@@ -69,7 +69,7 @@ LeaderboardManager.prototype.submitScore = function (name, score, turns, gameSta
     }, 0);
     return;
   }
-
+  console.log(grid);
   // Track this submission
   if (!this.recentSubmissions[name]) {
     this.recentSubmissions[name] = [];
@@ -86,7 +86,8 @@ LeaderboardManager.prototype.submitScore = function (name, score, turns, gameSta
       name: name,
       score: score,
       turns: turns,
-      gameStart: gameStart
+      gameStart: gameStart,
+      grid: grid
     })
   })
     .then(function () {
@@ -128,7 +129,7 @@ LeaderboardManager.prototype.getAllScores = function (callback) {
 };
 
 // Show leaderboard modal
-LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart) {
+LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid) {
   var self = this;
 
   var container = document.querySelector('.container');
@@ -193,7 +194,7 @@ LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turn
     messageEl.textContent = 'Submitting...';
     messageEl.style.color = '#776e65';
 
-    self.submitScore(name, currentScore, turnCount, gameStart, function (error, result) {
+    self.submitScore(name, currentScore, turnCount, gameStart, grid, function (error, result) {
       if (error) {
         messageEl.textContent = 'Failed: ' + error.message;
         messageEl.style.color = '#ed5565';
