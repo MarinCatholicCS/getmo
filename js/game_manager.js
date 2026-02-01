@@ -46,6 +46,7 @@ GameManager.prototype.setup = function () {
     this.turnCount = previousState.turnCount || 0; // Restore turn count
     this.gameStart = previousState.gameStart;
     this.grids = previousState.grids;
+    this.timeStamps = previousState.timeStamps;
   } else {
     this.grid = new Grid(this.size);
     this.score = 0;
@@ -55,7 +56,8 @@ GameManager.prototype.setup = function () {
     this.turnCount = 0;
     this.gameStart = new Date();
     this.grids = [];
-
+    this.timeStamps = [];
+    this.timeStamps.push(this.gameStart);
 
     // Add the initial tiles
     this.addStartTiles();
@@ -116,7 +118,8 @@ GameManager.prototype.serialize = function () {
     keepPlaying: this.keepPlaying,
     turnCount: this.turnCount,
     gameStart: this.gameStart,
-    grids: this.grids
+    grids: this.grids,
+    timeStamps: this.timeStamps
 
   };
 };
@@ -195,6 +198,7 @@ GameManager.prototype.move = function (direction) {
     this.turnCount++; // Increment turn counter on valid move
     this.addRandomTile();
     this.grids.push(this.grid);
+    this.timeStamps.push(new Date());
 
     if (!this.movesAvailable()) {
       this.over = true; // Game over!
@@ -203,7 +207,7 @@ GameManager.prototype.move = function (direction) {
       var self = this;
       setTimeout(function () {
         if (window.gameLeaderboard) {
-          window.gameLeaderboard.showLeaderboardModal(self.score, self.turnCount, self.gameStart, self.grid, self.grids);
+          window.gameLeaderboard.showLeaderboardModal(self.score, self.turnCount, self.gameStart, self.grid, self.grids, self.timeStamps);
         }
       }, 500); // Small delay so user can see final move
     }

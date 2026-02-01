@@ -58,7 +58,7 @@ LeaderboardManager.prototype.validateSubmission = function (name, score, turns) 
 };
 
 // Submit a score to the leaderboard
-LeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, grid, grids, callback) {
+LeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, grid, grids, timeStamps, callback) {
   var self = this;
 
   // Validate before submitting
@@ -89,7 +89,8 @@ LeaderboardManager.prototype.submitScore = function (name, score, turns, gameSta
       turns: turns,
       gameStart: gameStart,
       grid: grid,
-      grids: grids
+      grids: grids,
+      timeStamps: timeStamps
     })
   })
     .then(function () {
@@ -131,7 +132,7 @@ LeaderboardManager.prototype.getAllScores = function (callback) {
 };
 
 // Show leaderboard modal
-LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid, grids) {
+LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid, grids, timeStamps) {
   var self = this;
 
   var container = document.querySelector('.container');
@@ -196,7 +197,7 @@ LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turn
     messageEl.textContent = 'Submitting...';
     messageEl.style.color = '#776e65';
 
-    self.submitScore(name, currentScore, turnCount, gameStart, grid, grids, function (error, result) {
+    self.submitScore(name, currentScore, turnCount, gameStart, grid, grids, timeStamps, function (error, result) {
       if (error) {
         messageEl.textContent = 'Failed: ' + error.message;
         messageEl.style.color = '#ed5565';
