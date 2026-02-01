@@ -69,14 +69,7 @@ LeaderboardManager.prototype.submitScore = function (name, score, turns, gameSta
     }, 0);
     return;
   }
-  console.log(JSON.stringify({
-    name: name,
-    score: score,
-    turns: turns,
-    gameStart: gameStart,
-    grid: grid,
-    grids: grids
-  }));
+
   // Track this submission
   if (!this.recentSubmissions[name]) {
     this.recentSubmissions[name] = [];

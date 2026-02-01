@@ -195,7 +195,7 @@ GameManager.prototype.move = function (direction) {
     this.turnCount++; // Increment turn counter on valid move
     this.addRandomTile();
     this.grids.push(this.grid);
-    //console.log(this.grids);
+
     if (!this.movesAvailable()) {
       this.over = true; // Game over!
 
