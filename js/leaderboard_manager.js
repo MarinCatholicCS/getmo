@@ -58,7 +58,7 @@ LeaderboardManager.prototype.validateSubmission = function (name, score, turns) 
 };
 
 // Submit a score to the leaderboard
-LeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, grid, callback) {
+LeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, grid, grids, callback) {
   var self = this;
 
   // Validate before submitting
@@ -69,12 +69,20 @@ LeaderboardManager.prototype.submitScore = function (name, score, turns, gameSta
     }, 0);
     return;
   }
-  console.log(grid);
+  console.log(JSON.stringify({
+    name: name,
+    score: score,
+    turns: turns,
+    gameStart: gameStart,
+    grid: grid,
+    grids: grids
+  }));
   // Track this submission
   if (!this.recentSubmissions[name]) {
     this.recentSubmissions[name] = [];
   }
   this.recentSubmissions[name].push(Date.now());
+
 
   fetch(this.scriptUrl, {
     method: 'POST',
@@ -87,7 +95,8 @@ LeaderboardManager.prototype.submitScore = function (name, score, turns, gameSta
       score: score,
       turns: turns,
       gameStart: gameStart,
-      grid: grid
+      grid: grid,
+      grids: grids
     })
   })
     .then(function () {
@@ -129,7 +138,7 @@ LeaderboardManager.prototype.getAllScores = function (callback) {
 };
 
 // Show leaderboard modal
-LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid) {
+LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid, grids) {
   var self = this;
 
   var container = document.querySelector('.container');
@@ -194,7 +203,7 @@ LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turn
     messageEl.textContent = 'Submitting...';
     messageEl.style.color = '#776e65';
 
-    self.submitScore(name, currentScore, turnCount, gameStart, grid, function (error, result) {
+    self.submitScore(name, currentScore, turnCount, gameStart, grid, grids, function (error, result) {
       if (error) {
         messageEl.textContent = 'Failed: ' + error.message;
         messageEl.style.color = '#ed5565';
