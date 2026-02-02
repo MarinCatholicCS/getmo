@@ -26,17 +26,6 @@ LeaderboardManager.prototype.validateSubmission = function (name, score, turns) 
     return { valid: false, message: 'Score too high - this seems impossible!' };
   }
 
-  var minimumTurns = Math.floor(score / 100); // Very lenient: 100 points per turn
-  var maximumTurns = score * 3; // Nobody should take 3x as many turns as their score
-
-  if (turns < minimumTurns) {
-    return { valid: false, message: 'Too few turns for this score - impossible!' };
-  }
-
-  if (turns > maximumTurns) {
-    return { valid: false, message: 'Too many turns - something went wrong!' };
-  }
-
   // Check rate limiting (3 submissions per 5 minutes)
   var now = Date.now();
   var fiveMinutesAgo = now - (5 * 60 * 1000);
