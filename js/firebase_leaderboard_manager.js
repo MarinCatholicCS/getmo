@@ -1,16 +1,23 @@
-function LeaderboardManager(scriptUrl) {
-  this.scriptUrl = scriptUrl;
-  this.recentSubmissions = {}; // Track recent submissions by name
+function FirebaseLeaderboardManager() {
+  this.recentSubmissions = {}; // Track recent submissions by UID
+  this.scoresRef = window.database.ref('scores');
+  this.userSubmissionsRef = window.database.ref('userSubmissions');
 }
 
 // Client-side validation
-LeaderboardManager.prototype.validateSubmission = function (name, score, turns) {
+FirebaseLeaderboardManager.prototype.validateSubmission = function (name, score, turns) {
   // Validate name
   if (!name || name.length < 1) {
     return { valid: false, message: 'Please enter your name!' };
   }
   if (name.length > 20) {
     return { valid: false, message: 'Name too long (max 20 characters)' };
+  }
+
+  // Sanitize name
+  const sanitizedName = name.replace(/[^\w\s-]/g, '').trim();
+  if (sanitizedName.length < 1) {
+    return { valid: false, message: 'Invalid name characters' };
   }
 
   // Validate score
@@ -26,111 +33,290 @@ LeaderboardManager.prototype.validateSubmission = function (name, score, turns) 
     return { valid: false, message: 'Score too high - this seems impossible!' };
   }
 
-  // Check rate limiting (3 submissions per 5 minutes)
-  var now = Date.now();
-  var fiveMinutesAgo = now - (5 * 60 * 1000);
+  return { valid: true, sanitizedName: sanitizedName };
+};
 
-  if (!this.recentSubmissions[name]) {
-    this.recentSubmissions[name] = [];
+// Validate game data integrity
+FirebaseLeaderboardManager.prototype.validateGameData = function(score, turns, gameStart, grid, grids, timeStamps, scoreStamps) {
+  const now = Date.now();
+  const gameStartTime = new Date(gameStart).getTime();
+  
+  // Check if game start time is reasonable (not in future, not too old)
+  if (gameStartTime > now || now - gameStartTime > 24 * 60 * 60 * 1000) {
+    return { valid: false, message: 'Invalid game start time' };
   }
 
-  // Clean old submissions
-  this.recentSubmissions[name] = this.recentSubmissions[name].filter(function (timestamp) {
-    return timestamp > fiveMinutesAgo;
-  });
+  // Check first move delay
+  if (timeStamps && timeStamps.length > 1) {
+    const firstMoveDelay = new Date(timeStamps[1]).getTime() - gameStartTime;
+    if (firstMoveDelay > 60 * 60 * 1000) { // 60 minutes
+      return { valid: false, message: 'Suspicious delay detected' };
+    }
+  }
 
-  if (this.recentSubmissions[name].length >= 3) {
-    return { valid: false, message: 'Too many submissions. Please wait a few minutes.' };
+  // Validate scoreStamps
+  if (!scoreStamps || scoreStamps.length === 0) {
+    return { valid: false, message: 'Missing score data' };
+  }
+
+  // Check if all scoreStamps are valid powers of 2 (multiplied tiles)
+  for (let i = 0; i < scoreStamps.length; i++) {
+    const value = scoreStamps[i];
+    if (!Number.isInteger(Math.log2(value))) {
+      return { valid: false, message: 'Invalid merge detected' };
+    }
+  }
+
+  // Verify scoreStamps sum matches score
+  const scoreStampsSum = scoreStamps.reduce((sum, val) => sum + val, 0);
+  if (scoreStampsSum !== score) {
+    return { valid: false, message: 'Score mismatch' };
+  }
+
+  // Check for impossible consecutive merge patterns
+  let maxConsecutive = 1;
+  let currentConsecutive = 1;
+  for (let i = 1; i < scoreStamps.length; i++) {
+    if (scoreStamps[i] === scoreStamps[i-1]) {
+      currentConsecutive++;
+      maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
+    } else {
+      currentConsecutive = 1;
+    }
+  }
+  if (maxConsecutive > 50) {
+    return { valid: false, message: 'Impossible merge pattern' };
+  }
+
+  // Validate grid data
+  if (!grid || !grids || grids.length !== turns) {
+    return { valid: false, message: 'Grid data mismatch' };
+  }
+
+  // Verify biggest tile count matches scoreStamps
+  let biggestTile = 2;
+  let expectedCount = 1;
+  for (let i = 0; i < scoreStamps.length; i++) {
+    if (scoreStamps[i] > biggestTile) {
+      biggestTile = scoreStamps[i];
+      expectedCount = 1;
+    } else if (scoreStamps[i] === biggestTile) {
+      expectedCount++;
+    }
+  }
+
+  let actualCount = 0;
+  if (grid && grid.cells) {
+    for (let i = 0; i < grid.cells.length; i++) {
+      for (let j = 0; j < grid.cells[i].length; j++) {
+        if (grid.cells[i][j] && grid.cells[i][j].value === biggestTile) {
+          actualCount++;
+        }
+      }
+    }
+  }
+
+  if (actualCount !== expectedCount) {
+    return { valid: false, message: 'Grid state mismatch' };
+  }
+
+  // Validate timestamps
+  if (!timeStamps || timeStamps.length - 1 !== turns) {
+    return { valid: false, message: 'Timestamp mismatch' };
+  }
+
+  
+
+  // Check for suspicious score/time ratio
+  const gameDuration = (now - gameStartTime) / 1000 / 60; // in minutes
+  if (gameDuration < 10 && score > 50000) {
+    return { valid: false, message: 'Score too high for game duration' };
   }
 
   return { valid: true };
 };
 
-// Submit a score to the leaderboard
-LeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, grid, grids, timeStamps, scoreStamps, callback) {
-  var self = this;
+// Check rate limiting using Firebase
+FirebaseLeaderboardManager.prototype.checkRateLimit = function(callback) {
+  const user = window.auth.currentUser;
+  if (!user) {
+    callback(new Error('Authentication required'), null);
+    return;
+  }
 
-  // Validate before submitting
-  var validation = this.validateSubmission(name, score, turns);
-  if (!validation.valid) {
-    setTimeout(function () {
-      if (callback) callback(new Error(validation.message), null);
+  const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+  const userSubmissionsQuery = this.userSubmissionsRef
+    .child(user.uid)
+    .orderByChild('timestamp')
+    .startAt(fiveMinutesAgo);
+
+  userSubmissionsQuery.once('value', function(snapshot) {
+    const recentCount = snapshot.numChildren();
+    if (recentCount >= 3) {
+      callback(new Error('Too many submissions. Please wait a few minutes.'), null);
+    } else {
+      callback(null, true);
+    }
+  }, function(error) {
+    callback(error, null);
+  });
+};
+
+// Submit a score to Firebase
+FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns, gameStart, grid, grids, timeStamps, scoreStamps, callback) {
+  const self = this;
+  const user = window.auth.currentUser;
+
+  if (!user) {
+    setTimeout(function() {
+      callback(new Error('Authentication required. Please refresh the page.'), null);
     }, 0);
     return;
   }
 
-  // Track this submission
-  if (!this.recentSubmissions[name]) {
-    this.recentSubmissions[name] = [];
+  // Validate submission
+  const nameValidation = this.validateSubmission(name, score, turns);
+  if (!nameValidation.valid) {
+    setTimeout(function () {
+      callback(new Error(nameValidation.message), null);
+    }, 0);
+    return;
   }
-  this.recentSubmissions[name].push(Date.now());
 
-  fetch(this.scriptUrl, {
-    method: 'POST',
-    mode: 'no-cors', // Required for Google Apps Script
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      name: name,
+  // Validate game data
+  const gameValidation = this.validateGameData(score, turns, gameStart, grid, grids, timeStamps, scoreStamps);
+  if (!gameValidation.valid) {
+    setTimeout(function () {
+      callback(new Error(gameValidation.message), null);
+    }, 0);
+    return;
+  }
+
+  // Check rate limiting
+  this.checkRateLimit(function(error, allowed) {
+    if (error || !allowed) {
+      callback(error || new Error('Rate limit exceeded'), null);
+      return;
+    }
+
+    const timestamp = Date.now();
+    const scoreData = {
+      name: nameValidation.sanitizedName,
       score: score,
       turns: turns,
-      gameStart: gameStart,
-      grid: grid,
-      grids: grids,
-      timeStamps: timeStamps,
-      scoreStamps: scoreStamps,
-    })
-  })
-    .then(function () {
+      timestamp: timestamp,
+      gameStart: new Date(gameStart).getTime(),
+      uid: user.uid,
 
-      // no-cors means we can't read the response
-      // If it doesn't throw an error, we assume it worked
-      if (callback) callback(null, { status: 'success' });
-    })
-    .catch(function (error) {
-      if (callback) callback(error, null);
+      validation: {
+        biggestTile: Math.max(...scoreStamps),
+        totalMerges: scoreStamps.length,
+        gameDuration: timestamp - new Date(gameStart).getTime()
+      }
+    };
+
+    // Generate a unique key for this score
+    const newScoreRef = self.scoresRef.push();
+    
+    // Use a transaction to ensure data consistency
+    newScoreRef.set(scoreData, function(error) {
+      if (error) {
+        callback(error, null);
+      } else {
+        // Record this submission for rate limiting
+        self.userSubmissionsRef.child(user.uid).push({
+          timestamp: timestamp,
+          score: score
+        });
+
+        // Clean up old rate limit records (older than 5 minutes)
+        const fiveMinutesAgo = timestamp - (5 * 60 * 1000);
+        self.userSubmissionsRef.child(user.uid)
+          .orderByChild('timestamp')
+          .endAt(fiveMinutesAgo)
+          .once('value', function(snapshot) {
+            snapshot.forEach(function(child) {
+              child.ref.remove();
+            });
+          });
+
+        callback(null, { status: 'success', key: newScoreRef.key });
+      }
+    });
+  });
+};
+
+// Get the leaderboard (top 10 unique players)
+FirebaseLeaderboardManager.prototype.getLeaderboard = function (callback) {
+  // Get top 100 scores to ensure we have enough to filter duplicates
+  this.scoresRef
+    .orderByChild('score')
+    .limitToLast(100)
+    .once('value', function(snapshot) {
+      const scores = [];
+      snapshot.forEach(function(child) {
+        scores.push(child.val());
+      });
+
+      // Reverse to get highest first
+      scores.reverse();
+
+      // Keep only best score per player (case-insensitive)
+      const bestScores = {};
+      scores.forEach(function(entry) {
+        const nameLower = entry.name.toLowerCase();
+        if (!bestScores[nameLower] || entry.score > bestScores[nameLower].score) {
+          bestScores[nameLower] = entry;
+        }
+      });
+
+      // Convert to array and get top 10
+      const leaderboard = Object.values(bestScores)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 10);
+
+      callback(null, leaderboard);
+    }, function(error) {
+      callback(error, null);
     });
 };
 
-// Get the leaderboard
-LeaderboardManager.prototype.getLeaderboard = function (callback) {
-  fetch(this.scriptUrl)
-    .then(function (response) {
-      return response.json();
-    })
-    .then(function (data) {
-      if (callback) callback(null, data.leaderboard);
-    })
-    .catch(function (error) {
-      if (callback) callback(error, null);
+// Get all scores (with pagination support)
+FirebaseLeaderboardManager.prototype.getAllScores = function (callback) {
+  this.scoresRef
+    .orderByChild('score')
+    .once('value', function(snapshot) {
+      const scores = [];
+      snapshot.forEach(function(child) {
+        scores.push(child.val());
+      });
+
+      // Reverse to get highest first
+      scores.reverse();
+
+      callback(null, scores);
+    }, function(error) {
+      callback(error, null);
     });
 };
 
-// Get all scores (not just top 10)
-LeaderboardManager.prototype.getAllScores = function (callback) {
-  fetch(this.scriptUrl + '?all=true')
-    .then(function (response) {
-      return response.json();
-    })
-    .then(function (data) {
-      if (callback) callback(null, data.allScores);
-    })
-    .catch(function (error) {
-      if (callback) callback(error, null);
-    });
+// Listen for real-time leaderboard updates
+FirebaseLeaderboardManager.prototype.onLeaderboardUpdate = function(callback) {
+  this.scoresRef.on('child_added', function() {
+    // Fetch updated leaderboard when new score is added
+    callback();
+  });
 };
 
-// Show leaderboard modal
-LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid, grids, timeStamps, scoreStamps) {
+// Show leaderboard modal (same as before, just updated manager)
+FirebaseLeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid, grids, timeStamps, scoreStamps) {
   var self = this;
 
   var container = document.querySelector('.container');
   if (!container) {
-    // Fallback: add to body
     container = document.body;
   }
-  // Create modal HTML - simplified, just for score submission
+
   var modalHTML = `
     <div class="leaderboard-overlay">
       <div class="leaderboard-modal leaderboard-modal-simple">
@@ -150,22 +336,19 @@ LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turn
     </div>
   `;
 
-  // Add modal to page
   var modalContainer = document.createElement('div');
   modalContainer.innerHTML = modalHTML;
   container.appendChild(modalContainer);
 
-  // Prevent WASD/arrow keys from triggering game controls when typing
   var nameInput = document.getElementById('player-name');
   nameInput.addEventListener('keydown', function (e) {
-    e.stopPropagation(); // Prevent event from reaching game controls
+    e.stopPropagation();
   });
 
   nameInput.addEventListener('keyup', function (e) {
-    e.stopPropagation(); // Prevent event from reaching game controls
+    e.stopPropagation();
   });
 
-  // Submit on Enter key
   nameInput.addEventListener('keypress', function (e) {
     e.stopPropagation();
     if (e.key === 'Enter') {
@@ -173,7 +356,6 @@ LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turn
     }
   });
 
-  // Submit score button
   document.getElementById('submit-score-btn').addEventListener('click', function () {
     var name = document.getElementById('player-name').value.trim();
     var messageEl = document.getElementById('submit-message');
@@ -195,62 +377,27 @@ LeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turn
         messageEl.textContent = 'Score submitted successfully!';
         messageEl.style.color = '#a0d468';
 
-        // Reload permanent leaderboard
         setTimeout(function () {
           self.updatePermanentLeaderboard();
-        }, 1000);
+        }, 500);
 
-        // Disable input and button
         document.getElementById('player-name').disabled = true;
         document.getElementById('submit-score-btn').disabled = true;
       }
     });
   });
 
-  // Close button
   document.getElementById('close-leaderboard').addEventListener('click', function () {
     modalContainer.remove();
   });
 
-  // Focus on name input
   nameInput.focus();
 };
 
-// Load and display leaderboard in the modal
-LeaderboardManager.prototype.loadAndDisplayLeaderboard = function () {
-  var listEl = document.getElementById('leaderboard-list');
-
-  this.getLeaderboard(function (error, leaderboard) {
-    if (error) {
-      listEl.innerHTML = '<p class="error">Failed to load leaderboard</p>';
-      return;
-    }
-
-    if (!leaderboard || leaderboard.length === 0) {
-      listEl.innerHTML = '<p>No scores yet. Be the first!</p>';
-      return;
-    }
-
-    var html = '<ol class="leaderboard-entries">';
-    leaderboard.forEach(function (entry) {
-      html += `
-        <li>
-          <span class="player-name">${entry.name}</span>
-          <span class="player-score">${entry.score}</span>
-        </li>
-      `;
-    });
-    html += '</ol>';
-
-    listEl.innerHTML = html;
-  });
-};
-
-// Create permanent leaderboard display at bottom of page
-LeaderboardManager.prototype.createPermanentLeaderboard = function () {
+// Create permanent leaderboard display
+FirebaseLeaderboardManager.prototype.createPermanentLeaderboard = function () {
   var self = this;
 
-  // Create permanent leaderboard HTML
   var leaderboardHTML = `
     <div class="permanent-leaderboard">
       <h3>🏆 Top 10 Leaderboard</h3>
@@ -262,10 +409,8 @@ LeaderboardManager.prototype.createPermanentLeaderboard = function () {
     </div>
   `;
 
-  // Find the container and add to it
   var container = document.querySelector('.container');
   if (!container) {
-    // Fallback: add to body
     container = document.body;
   }
 
@@ -273,27 +418,24 @@ LeaderboardManager.prototype.createPermanentLeaderboard = function () {
   leaderboardDiv.innerHTML = leaderboardHTML;
   container.appendChild(leaderboardDiv);
 
-  // Load initial leaderboard
   this.updatePermanentLeaderboard();
 
-  // Refresh button
   document.getElementById('refresh-leaderboard').addEventListener('click', function () {
     self.updatePermanentLeaderboard();
   });
 
-  // View All Scores button
   document.getElementById('view-all-scores').addEventListener('click', function () {
     self.showAllScoresModal();
   });
 
-  // Auto-refresh every 30 seconds
-  setInterval(function () {
+  // Listen for real-time updates
+  this.onLeaderboardUpdate(function() {
     self.updatePermanentLeaderboard();
-  }, 30000);
+  });
 };
 
-// Update the permanent leaderboard display
-LeaderboardManager.prototype.updatePermanentLeaderboard = function () {
+// Update permanent leaderboard display
+FirebaseLeaderboardManager.prototype.updatePermanentLeaderboard = function () {
   var listEl = document.getElementById('permanent-leaderboard-list');
 
   this.getLeaderboard(function (error, leaderboard) {
@@ -314,7 +456,6 @@ LeaderboardManager.prototype.updatePermanentLeaderboard = function () {
       else if (index === 1) medal = '🥈';
       else if (index === 2) medal = '🥉';
 
-      // Format the timestamp
       var formattedDate = '';
       if (entry.timestamp) {
         var date = new Date(entry.timestamp);
@@ -336,15 +477,14 @@ LeaderboardManager.prototype.updatePermanentLeaderboard = function () {
   });
 };
 
-// Show all scores modal with pagination and filtering
-LeaderboardManager.prototype.showAllScoresModal = function () {
+// Show all scores modal
+FirebaseLeaderboardManager.prototype.showAllScoresModal = function () {
   var self = this;
   var currentPage = 1;
   var itemsPerPage = 20;
   var allScores = [];
-  var sortMode = 'score'; // 'score' or 'recent'
+  var sortMode = 'score';
 
-  // Create modal HTML
   var modalHTML = `
     <div class="leaderboard-overlay">
       <div class="leaderboard-modal all-scores-modal">
@@ -370,12 +510,10 @@ LeaderboardManager.prototype.showAllScoresModal = function () {
     </div>
   `;
 
-  // Add modal to page
   var modalContainer = document.createElement('div');
   modalContainer.innerHTML = modalHTML;
   document.body.appendChild(modalContainer);
 
-  // Load all scores
   function loadScores() {
     document.getElementById('all-scores-list').innerHTML = '<p class="loading">Loading...</p>';
 
@@ -390,11 +528,9 @@ LeaderboardManager.prototype.showAllScoresModal = function () {
     });
   }
 
-  // Render scores based on current page and sort mode
   function renderScores() {
     var sortedScores = allScores.slice();
 
-    // Remove duplicates - keep only best score per person
     var bestScores = {};
     sortedScores.forEach(function (entry) {
       var name = entry.name.toLowerCase();
@@ -403,25 +539,21 @@ LeaderboardManager.prototype.showAllScoresModal = function () {
       }
     });
 
-    // Convert back to array
     var uniqueScores = Object.values(bestScores);
 
-    // Sort based on mode
     if (sortMode === 'score') {
       uniqueScores.sort(function (a, b) { return b.score - a.score; });
     } else {
       uniqueScores.sort(function (a, b) {
-        return new Date(b.timestamp) - new Date(a.timestamp);
+        return b.timestamp - a.timestamp;
       });
     }
 
-    // Calculate pagination
     var totalPages = Math.ceil(uniqueScores.length / itemsPerPage);
     var startIndex = (currentPage - 1) * itemsPerPage;
     var endIndex = startIndex + itemsPerPage;
     var pageScores = uniqueScores.slice(startIndex, endIndex);
 
-    // Render list
     var html = '<ol class="all-scores-entries" start="' + (startIndex + 1) + '">';
     pageScores.forEach(function (entry) {
       var formattedDate = '';
@@ -444,13 +576,11 @@ LeaderboardManager.prototype.showAllScoresModal = function () {
 
     document.getElementById('all-scores-list').innerHTML = html;
 
-    // Update pagination controls
     document.getElementById('page-info').textContent = 'Page ' + currentPage + ' of ' + totalPages;
     document.getElementById('prev-page').disabled = currentPage === 1;
     document.getElementById('next-page').disabled = currentPage === totalPages;
   }
 
-  // Filter button handlers
   var filterBtns = modalContainer.querySelectorAll('.filter-btn');
   filterBtns.forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -462,7 +592,6 @@ LeaderboardManager.prototype.showAllScoresModal = function () {
     });
   });
 
-  // Pagination handlers
   document.getElementById('prev-page').addEventListener('click', function () {
     if (currentPage > 1) {
       currentPage--;
@@ -478,11 +607,9 @@ LeaderboardManager.prototype.showAllScoresModal = function () {
     }
   });
 
-  // Close button
   document.getElementById('close-all-scores').addEventListener('click', function () {
     modalContainer.remove();
   });
 
-  // Load initial data
   loadScores();
 };

@@ -35,7 +35,7 @@
 
     <div class="above-game">
       <p class="game-intro">Join the numbers and get to the <strong>Mo Adib</strong></p>
-      <p class="game-intro">DATABASE CHANGE COMING FEB 5th, ALL SCORES WILL BE RESET, THERE MAY BE PROBLEMS WITH SUBMITTING SCORES CURRENTLY, PLAY <a href="../mosweeper">mosweeper</a> or <a href="../flappymo">flappy mo</a></p>
+      <p class="game-intro">We are currently going through a database change. Scores may be deleted periodically for this week.</p>
 
       <a class="restart-button">New Game</a>
 
@@ -86,7 +86,16 @@
 
 
   </div>
-  <script src="js/leaderboard_manager.js"></script>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+
+  <!-- Firebase Configuration -->
+  <script src="js/firebase_config.js"></script>
+
+  <!-- Game Scripts -->
   <script src="js/bind_polyfill.js"></script>
   <script src="js/classlist_polyfill.js"></script>
   <script src="js/animframe_polyfill.js"></script>
@@ -96,7 +105,12 @@
   <script src="js/tile.js"></script>
   <script src="js/local_storage_manager.js"></script>
   <script src="js/game_manager.js"></script>
-  <script src="js/application.js"></script>
+  
+  <!-- Firebase Leaderboard Manager (replaces old leaderboard_manager.js) -->
+  <script src="js/firebase_leaderboard_manager.js"></script>
+  
+  <!-- Application Initialization -->
+  <script src="js/application_firebase.js"></script>
 </body>
 
 </html>
