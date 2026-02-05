@@ -331,7 +331,7 @@ FirebaseLeaderboardManager.prototype.showLeaderboardModal = function (currentSco
         <p class="signin-prompt">Want a verified checkmark? ✓</p>
         <button id="modal-google-signin" class="google-signin-button">
           <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-          Sign in with Google
+          Sign in with non MC email
         </button>
         <p class="signin-note">Your score will be saved with verification</p>
       </div>
