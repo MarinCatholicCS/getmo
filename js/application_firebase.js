@@ -2,8 +2,21 @@
 window.requestAnimationFrame(function () {
   new GameManager(4, KeyboardInputManager, HTMLActuator, LocalStorageManager);
   
-  // Function to initialize leaderboard
+  // Function to initialize leaderboard (with duplicate prevention)
   function initializeLeaderboard() {
+    // Check if leaderboard already exists
+    if (window.gameLeaderboard) {
+      console.log('Leaderboard already initialized, skipping...');
+      return;
+    }
+    
+    // Check if permanent leaderboard HTML already exists
+    if (document.querySelector('.permanent-leaderboard')) {
+      console.log('Leaderboard HTML already exists, skipping...');
+      return;
+    }
+    
+    console.log('Initializing leaderboard...');
     var leaderboard = new FirebaseLeaderboardManager();
     window.gameLeaderboard = leaderboard;
     leaderboard.createPermanentLeaderboard();
@@ -14,9 +27,7 @@ window.requestAnimationFrame(function () {
     // Firebase is already ready
     initializeLeaderboard();
   } else {
-    // Wait for Firebase ready event
-    window.addEventListener('firebaseReady', function() {
-      initializeLeaderboard();
-    });
+    // Wait for Firebase ready event (only once)
+    window.addEventListener('firebaseReady', initializeLeaderboard, { once: true });
   }
 });

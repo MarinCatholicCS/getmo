@@ -37,10 +37,10 @@ FirebaseLeaderboardManager.prototype.validateSubmission = function (name, score,
 };
 
 // Validate game data integrity
-FirebaseLeaderboardManager.prototype.validateGameData = function (score, turns, gameStart, grid, grids, timeStamps, scoreStamps) {
+FirebaseLeaderboardManager.prototype.validateGameData = function(score, turns, gameStart, grid, grids, timeStamps, scoreStamps) {
   const now = Date.now();
   const gameStartTime = new Date(gameStart).getTime();
-
+  
   // Check if game start time is reasonable (not in future, not too old)
   if (gameStartTime > now || now - gameStartTime > 24 * 60 * 60 * 1000) {
     return { valid: false, message: 'Invalid game start time' };
@@ -77,7 +77,7 @@ FirebaseLeaderboardManager.prototype.validateGameData = function (score, turns, 
   let maxConsecutive = 1;
   let currentConsecutive = 1;
   for (let i = 1; i < scoreStamps.length; i++) {
-    if (scoreStamps[i] === scoreStamps[i - 1]) {
+    if (scoreStamps[i] === scoreStamps[i-1]) {
       currentConsecutive++;
       maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
     } else {
@@ -126,7 +126,6 @@ FirebaseLeaderboardManager.prototype.validateGameData = function (score, turns, 
   }
 
 
-
   // Check for suspicious score/time ratio
   const gameDuration = (now - gameStartTime) / 1000 / 60; // in minutes
   if (gameDuration < 10 && score > 50000) {
@@ -137,7 +136,7 @@ FirebaseLeaderboardManager.prototype.validateGameData = function (score, turns, 
 };
 
 // Check rate limiting using Firebase
-FirebaseLeaderboardManager.prototype.checkRateLimit = function (callback) {
+FirebaseLeaderboardManager.prototype.checkRateLimit = function(callback) {
   const user = window.auth.currentUser;
   if (!user) {
     callback(new Error('Authentication required'), null);
@@ -150,14 +149,14 @@ FirebaseLeaderboardManager.prototype.checkRateLimit = function (callback) {
     .orderByChild('timestamp')
     .startAt(fiveMinutesAgo);
 
-  userSubmissionsQuery.once('value', function (snapshot) {
+  userSubmissionsQuery.once('value', function(snapshot) {
     const recentCount = snapshot.numChildren();
     if (recentCount >= 3) {
       callback(new Error('Too many submissions. Please wait a few minutes.'), null);
     } else {
       callback(null, true);
     }
-  }, function (error) {
+  }, function(error) {
     callback(error, null);
   });
 };
@@ -168,7 +167,7 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
   const user = window.auth.currentUser;
 
   if (!user) {
-    setTimeout(function () {
+    setTimeout(function() {
       callback(new Error('Authentication required. Please refresh the page.'), null);
     }, 0);
     return;
@@ -193,7 +192,7 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
   }
 
   // Check rate limiting
-  this.checkRateLimit(function (error, allowed) {
+  this.checkRateLimit(function(error, allowed) {
     if (error || !allowed) {
       callback(error || new Error('Rate limit exceeded'), null);
       return;
@@ -207,9 +206,8 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
       timestamp: timestamp,
       gameStart: new Date(gameStart).getTime(),
       uid: user.uid,
-      // Store user info if they're signed in with Google
-      verified: !user.isAnonymous, // True if signed in with Google
-      email: user.email || null,
+      // Store verification email (null if anonymous, email if Google-verified)
+      verifiedEmail: user.isAnonymous ? null : user.email,
       photoURL: user.photoURL || null,
       // Store validation data (but not full grids to save space)
       validation: {
@@ -221,9 +219,9 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
 
     // Generate a unique key for this score
     const newScoreRef = self.scoresRef.push();
-
+    
     // Use a transaction to ensure data consistency
-    newScoreRef.set(scoreData, function (error) {
+    newScoreRef.set(scoreData, function(error) {
       if (error) {
         callback(error, null);
       } else {
@@ -238,8 +236,8 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
         self.userSubmissionsRef.child(user.uid)
           .orderByChild('timestamp')
           .endAt(fiveMinutesAgo)
-          .once('value', function (snapshot) {
-            snapshot.forEach(function (child) {
+          .once('value', function(snapshot) {
+            snapshot.forEach(function(child) {
               child.ref.remove();
             });
           });
@@ -256,9 +254,9 @@ FirebaseLeaderboardManager.prototype.getLeaderboard = function (callback) {
   this.scoresRef
     .orderByChild('score')
     .limitToLast(100)
-    .once('value', function (snapshot) {
+    .once('value', function(snapshot) {
       const scores = [];
-      snapshot.forEach(function (child) {
+      snapshot.forEach(function(child) {
         scores.push(child.val());
       });
 
@@ -267,7 +265,7 @@ FirebaseLeaderboardManager.prototype.getLeaderboard = function (callback) {
 
       // Keep only best score per player (case-insensitive)
       const bestScores = {};
-      scores.forEach(function (entry) {
+      scores.forEach(function(entry) {
         const nameLower = entry.name.toLowerCase();
         if (!bestScores[nameLower] || entry.score > bestScores[nameLower].score) {
           bestScores[nameLower] = entry;
@@ -280,7 +278,7 @@ FirebaseLeaderboardManager.prototype.getLeaderboard = function (callback) {
         .slice(0, 10);
 
       callback(null, leaderboard);
-    }, function (error) {
+    }, function(error) {
       callback(error, null);
     });
 };
@@ -289,9 +287,9 @@ FirebaseLeaderboardManager.prototype.getLeaderboard = function (callback) {
 FirebaseLeaderboardManager.prototype.getAllScores = function (callback) {
   this.scoresRef
     .orderByChild('score')
-    .once('value', function (snapshot) {
+    .once('value', function(snapshot) {
       const scores = [];
-      snapshot.forEach(function (child) {
+      snapshot.forEach(function(child) {
         scores.push(child.val());
       });
 
@@ -299,14 +297,14 @@ FirebaseLeaderboardManager.prototype.getAllScores = function (callback) {
       scores.reverse();
 
       callback(null, scores);
-    }, function (error) {
+    }, function(error) {
       callback(error, null);
     });
 };
 
 // Listen for real-time leaderboard updates
-FirebaseLeaderboardManager.prototype.onLeaderboardUpdate = function (callback) {
-  this.scoresRef.on('child_added', function () {
+FirebaseLeaderboardManager.prototype.onLeaderboardUpdate = function(callback) {
+  this.scoresRef.on('child_added', function() {
     // Fetch updated leaderboard when new score is added
     callback();
   });
@@ -370,40 +368,40 @@ FirebaseLeaderboardManager.prototype.showLeaderboardModal = function (currentSco
   if (!isGoogleUser) {
     var googleSignInBtn = document.getElementById('modal-google-signin');
     if (googleSignInBtn) {
-      googleSignInBtn.addEventListener('click', function () {
+      googleSignInBtn.addEventListener('click', function() {
         var messageEl = document.getElementById('submit-message');
         messageEl.textContent = 'Signing in with Google...';
         messageEl.style.color = '#776e65';
-
+        
         signInWithGoogle(); // Defined in firebase_config.js
-
+        
         // Wait for auth state change, then update the form (not the whole modal)
-        var unsubscribe = window.auth.onAuthStateChanged(function (newUser) {
+        var unsubscribe = window.auth.onAuthStateChanged(function(newUser) {
           if (newUser && !newUser.isAnonymous) {
             // Update just the form, not recreate the modal
             var nameInput = document.getElementById('player-name');
             var submitBtn = document.getElementById('submit-score-btn');
             var googleSection = document.querySelector('.google-signin-section');
             var divider = document.querySelector('.divider');
-
+            
             // Remove Google sign-in section and divider
             if (googleSection) googleSection.remove();
             if (divider) divider.remove();
-
+            
             // Update name input with Google account name
             if (nameInput) {
               nameInput.value = newUser.displayName || newUser.email.split('@')[0];
             }
-
+            
             // Update submit button text
             if (submitBtn) {
               submitBtn.textContent = 'Submit Score (Verified ✓)';
             }
-
+            
             // Update message
             messageEl.textContent = 'Signed in with Google! ✓';
             messageEl.style.color = '#a0d468';
-
+            
             unsubscribe(); // Stop listening
           }
         });
@@ -501,7 +499,7 @@ FirebaseLeaderboardManager.prototype.createPermanentLeaderboard = function () {
   });
 
   // Listen for real-time updates
-  this.onLeaderboardUpdate(function () {
+  this.onLeaderboardUpdate(function() {
     self.updatePermanentLeaderboard();
   });
 };
@@ -535,7 +533,7 @@ FirebaseLeaderboardManager.prototype.updatePermanentLeaderboard = function () {
       }
 
       // Add verified badge for Google users
-      var verifiedBadge = entry.verified ? ' <span class="verified-badge" title="Verified with Google">✓</span>' : '';
+      var verifiedBadge = entry.verifiedEmail ? ' <span class="verified-badge" title="Verified: ' + entry.verifiedEmail + '">✓</span>' : '';
 
       html += `
         <li>
@@ -619,8 +617,8 @@ FirebaseLeaderboardManager.prototype.showAllScoresModal = function () {
 
     // Filter verified if needed
     if (sortMode === 'verified') {
-      uniqueScores = uniqueScores.filter(function (entry) {
-        return entry.verified === true;
+      uniqueScores = uniqueScores.filter(function(entry) {
+        return entry.verifiedEmail !== null && entry.verifiedEmail !== undefined;
       });
     }
 
@@ -645,7 +643,7 @@ FirebaseLeaderboardManager.prototype.showAllScoresModal = function () {
         formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }
 
-      var verifiedBadge = entry.verified ? ' <span class="verified-badge" title="Verified with Google">✓</span>' : '';
+      var verifiedBadge = entry.verifiedEmail ? ' <span class="verified-badge" title="Verified: ' + entry.verifiedEmail + '">✓</span>' : '';
 
       html += `
         <li>
