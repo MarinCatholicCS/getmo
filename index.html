@@ -24,7 +24,11 @@
 </head>
 
 <body>
+  <!-- Authentication UI Container -->
+
+
   <div class="container">
+    <div id="auth-container"></div>
     <div class="heading">
       <h1 class="title">GetMo</h1>
       <div class="scores-container">
@@ -35,7 +39,8 @@
 
     <div class="above-game">
       <p class="game-intro">Join the numbers and get to the <strong>Mo Adib</strong></p>
-      <p class="game-intro">We are currently going through a database change. Scores may be deleted periodically for this week.</p>
+      <p class="game-intro">We are currently going through a database change. Scores may be deleted periodically for
+        this week.</p>
 
       <a class="restart-button">New Game</a>
 
@@ -105,10 +110,10 @@
   <script src="js/tile.js"></script>
   <script src="js/local_storage_manager.js"></script>
   <script src="js/game_manager.js"></script>
-  
+
   <!-- Firebase Leaderboard Manager (replaces old leaderboard_manager.js) -->
   <script src="js/firebase_leaderboard_manager.js"></script>
-  
+
   <!-- Application Initialization -->
   <script src="js/application_firebase.js"></script>
 </body>

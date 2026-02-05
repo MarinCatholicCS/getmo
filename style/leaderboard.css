@@ -488,3 +488,246 @@
   margin-bottom: 20px;
   font-style: italic;
 }
+
+
+/* Authentication UI Styles */
+#auth-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 999;
+}
+
+.auth-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: #3c4043;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.auth-button:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border-color: #d2e3fc;
+  background: #f8f9fa;
+}
+
+.auth-button img {
+  width: 18px;
+  height: 18px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.user-photo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #3c4043;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.signout-button {
+  padding: 6px 12px;
+  background: #f1f3f4;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #5f6368;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.signout-button:hover {
+  background: #e8eaed;
+}
+
+/* Google Sign-In in Modal */
+.google-signin-section {
+  background: #e8f0fe;
+  padding: 20px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.signin-prompt {
+  color: #1967d2;
+  font-weight: bold;
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+
+.google-signin-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: white;
+  border: 1px solid #dadce0;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: #3c4043;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+}
+
+.google-signin-button:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  background: #f8f9fa;
+}
+
+.google-signin-button img {
+  width: 20px;
+  height: 20px;
+}
+
+.signin-note {
+  font-size: 13px;
+  color: #5f6368;
+  margin-top: 10px;
+  font-style: italic;
+}
+
+.divider {
+  text-align: center;
+  margin: 20px 0;
+  position: relative;
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #dadce0;
+}
+
+.divider span {
+  position: relative;
+  background: #faf8ef;
+  padding: 0 15px;
+  color: #5f6368;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Verified Badge */
+.verified-badge {
+  display: inline-block;
+  color: #1967d2;
+  font-weight: bold;
+  font-size: 16px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.permanent-leaderboard-entries .verified-badge {
+  font-size: 14px;
+}
+
+.all-scores-entries .verified-badge {
+  font-size: 14px;
+}
+
+/* Filter button for verified scores */
+.filter-btn[data-sort="verified"] {
+  position: relative;
+}
+
+.filter-btn[data-sort="verified"]::after {
+  content: '✓';
+  margin-left: 5px;
+  font-weight: bold;
+}
+
+/* Mobile Responsive */
+@media (max-width: 520px) {
+  #auth-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .auth-button {
+    font-size: 12px;
+    padding: 8px 15px;
+  }
+
+  .auth-button img {
+    width: 16px;
+    height: 16px;
+  }
+
+  .user-info {
+    padding: 6px 10px;
+  }
+
+  .user-photo {
+    width: 28px;
+    height: 28px;
+  }
+
+  .user-name {
+    font-size: 12px;
+    max-width: 100px;
+  }
+
+  .signout-button {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+
+  .google-signin-section {
+    padding: 15px;
+  }
+
+  .signin-prompt {
+    font-size: 14px;
+  }
+
+  .google-signin-button {
+    padding: 10px 20px;
+    font-size: 14px;
+  }
+
+  .google-signin-button img {
+    width: 18px;
+    height: 18px;
+  }
+}

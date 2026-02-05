@@ -37,10 +37,10 @@ FirebaseLeaderboardManager.prototype.validateSubmission = function (name, score,
 };
 
 // Validate game data integrity
-FirebaseLeaderboardManager.prototype.validateGameData = function(score, turns, gameStart, grid, grids, timeStamps, scoreStamps) {
+FirebaseLeaderboardManager.prototype.validateGameData = function (score, turns, gameStart, grid, grids, timeStamps, scoreStamps) {
   const now = Date.now();
   const gameStartTime = new Date(gameStart).getTime();
-  
+
   // Check if game start time is reasonable (not in future, not too old)
   if (gameStartTime > now || now - gameStartTime > 24 * 60 * 60 * 1000) {
     return { valid: false, message: 'Invalid game start time' };
@@ -77,7 +77,7 @@ FirebaseLeaderboardManager.prototype.validateGameData = function(score, turns, g
   let maxConsecutive = 1;
   let currentConsecutive = 1;
   for (let i = 1; i < scoreStamps.length; i++) {
-    if (scoreStamps[i] === scoreStamps[i-1]) {
+    if (scoreStamps[i] === scoreStamps[i - 1]) {
       currentConsecutive++;
       maxConsecutive = Math.max(maxConsecutive, currentConsecutive);
     } else {
@@ -125,7 +125,13 @@ FirebaseLeaderboardManager.prototype.validateGameData = function(score, turns, g
     return { valid: false, message: 'Timestamp mismatch' };
   }
 
-  
+  // Check for reasonable time progression (no time travel, no impossible speeds)
+  for (let i = 1; i < timeStamps.length; i++) {
+    const timeDiff = new Date(timeStamps[i]).getTime() - new Date(timeStamps[i - 1]).getTime();
+    if (timeDiff < 0 || timeDiff < 50) { // Minimum 50ms per move (humanly impossible to go faster)
+      return { valid: false, message: 'Impossible move speed' };
+    }
+  }
 
   // Check for suspicious score/time ratio
   const gameDuration = (now - gameStartTime) / 1000 / 60; // in minutes
@@ -137,7 +143,7 @@ FirebaseLeaderboardManager.prototype.validateGameData = function(score, turns, g
 };
 
 // Check rate limiting using Firebase
-FirebaseLeaderboardManager.prototype.checkRateLimit = function(callback) {
+FirebaseLeaderboardManager.prototype.checkRateLimit = function (callback) {
   const user = window.auth.currentUser;
   if (!user) {
     callback(new Error('Authentication required'), null);
@@ -150,14 +156,14 @@ FirebaseLeaderboardManager.prototype.checkRateLimit = function(callback) {
     .orderByChild('timestamp')
     .startAt(fiveMinutesAgo);
 
-  userSubmissionsQuery.once('value', function(snapshot) {
+  userSubmissionsQuery.once('value', function (snapshot) {
     const recentCount = snapshot.numChildren();
     if (recentCount >= 3) {
       callback(new Error('Too many submissions. Please wait a few minutes.'), null);
     } else {
       callback(null, true);
     }
-  }, function(error) {
+  }, function (error) {
     callback(error, null);
   });
 };
@@ -168,7 +174,7 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
   const user = window.auth.currentUser;
 
   if (!user) {
-    setTimeout(function() {
+    setTimeout(function () {
       callback(new Error('Authentication required. Please refresh the page.'), null);
     }, 0);
     return;
@@ -193,7 +199,7 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
   }
 
   // Check rate limiting
-  this.checkRateLimit(function(error, allowed) {
+  this.checkRateLimit(function (error, allowed) {
     if (error || !allowed) {
       callback(error || new Error('Rate limit exceeded'), null);
       return;
@@ -207,7 +213,11 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
       timestamp: timestamp,
       gameStart: new Date(gameStart).getTime(),
       uid: user.uid,
-
+      // Store user info if they're signed in with Google
+      verified: !user.isAnonymous, // True if signed in with Google
+      email: user.email || null,
+      photoURL: user.photoURL || null,
+      // Store validation data (but not full grids to save space)
       validation: {
         biggestTile: Math.max(...scoreStamps),
         totalMerges: scoreStamps.length,
@@ -217,9 +227,9 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
 
     // Generate a unique key for this score
     const newScoreRef = self.scoresRef.push();
-    
+
     // Use a transaction to ensure data consistency
-    newScoreRef.set(scoreData, function(error) {
+    newScoreRef.set(scoreData, function (error) {
       if (error) {
         callback(error, null);
       } else {
@@ -234,8 +244,8 @@ FirebaseLeaderboardManager.prototype.submitScore = function (name, score, turns,
         self.userSubmissionsRef.child(user.uid)
           .orderByChild('timestamp')
           .endAt(fiveMinutesAgo)
-          .once('value', function(snapshot) {
-            snapshot.forEach(function(child) {
+          .once('value', function (snapshot) {
+            snapshot.forEach(function (child) {
               child.ref.remove();
             });
           });
@@ -252,9 +262,9 @@ FirebaseLeaderboardManager.prototype.getLeaderboard = function (callback) {
   this.scoresRef
     .orderByChild('score')
     .limitToLast(100)
-    .once('value', function(snapshot) {
+    .once('value', function (snapshot) {
       const scores = [];
-      snapshot.forEach(function(child) {
+      snapshot.forEach(function (child) {
         scores.push(child.val());
       });
 
@@ -263,7 +273,7 @@ FirebaseLeaderboardManager.prototype.getLeaderboard = function (callback) {
 
       // Keep only best score per player (case-insensitive)
       const bestScores = {};
-      scores.forEach(function(entry) {
+      scores.forEach(function (entry) {
         const nameLower = entry.name.toLowerCase();
         if (!bestScores[nameLower] || entry.score > bestScores[nameLower].score) {
           bestScores[nameLower] = entry;
@@ -276,7 +286,7 @@ FirebaseLeaderboardManager.prototype.getLeaderboard = function (callback) {
         .slice(0, 10);
 
       callback(null, leaderboard);
-    }, function(error) {
+    }, function (error) {
       callback(error, null);
     });
 };
@@ -285,9 +295,9 @@ FirebaseLeaderboardManager.prototype.getLeaderboard = function (callback) {
 FirebaseLeaderboardManager.prototype.getAllScores = function (callback) {
   this.scoresRef
     .orderByChild('score')
-    .once('value', function(snapshot) {
+    .once('value', function (snapshot) {
       const scores = [];
-      snapshot.forEach(function(child) {
+      snapshot.forEach(function (child) {
         scores.push(child.val());
       });
 
@@ -295,26 +305,46 @@ FirebaseLeaderboardManager.prototype.getAllScores = function (callback) {
       scores.reverse();
 
       callback(null, scores);
-    }, function(error) {
+    }, function (error) {
       callback(error, null);
     });
 };
 
 // Listen for real-time leaderboard updates
-FirebaseLeaderboardManager.prototype.onLeaderboardUpdate = function(callback) {
-  this.scoresRef.on('child_added', function() {
+FirebaseLeaderboardManager.prototype.onLeaderboardUpdate = function (callback) {
+  this.scoresRef.on('child_added', function () {
     // Fetch updated leaderboard when new score is added
     callback();
   });
 };
 
-// Show leaderboard modal (same as before, just updated manager)
+// Show leaderboard modal with Google Sign-In option
 FirebaseLeaderboardManager.prototype.showLeaderboardModal = function (currentScore, turnCount, gameStart, grid, grids, timeStamps, scoreStamps) {
   var self = this;
+  var user = window.auth.currentUser;
 
   var container = document.querySelector('.container');
   if (!container) {
     container = document.body;
+  }
+
+  // Check if user is signed in with Google
+  var isGoogleUser = user && !user.isAnonymous;
+  var suggestedName = isGoogleUser ? (user.displayName || user.email.split('@')[0]) : '';
+
+  var googleSignInSection = '';
+  if (!isGoogleUser) {
+    googleSignInSection = `
+      <div class="google-signin-section">
+        <p class="signin-prompt">Want a verified checkmark? ✓</p>
+        <button id="modal-google-signin" class="google-signin-button">
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+          Sign in with Google
+        </button>
+        <p class="signin-note">Your score will be saved with verification</p>
+      </div>
+      <div class="divider"><span>OR</span></div>
+    `;
   }
 
   var modalHTML = `
@@ -324,10 +354,12 @@ FirebaseLeaderboardManager.prototype.showLeaderboardModal = function (currentSco
         <p class="final-score">Your Score: <strong>${currentScore}</strong></p>
         <p class="turn-count">Moves: ${turnCount}</p>
         
+        ${googleSignInSection}
+        
         <div class="submit-score-section">
           <h3>Submit to Leaderboard</h3>
-          <input type="text" id="player-name" placeholder="Enter your name" maxlength="20" />
-          <button id="submit-score-btn">Submit Score</button>
+          <input type="text" id="player-name" placeholder="Enter your name" maxlength="20" value="${suggestedName}" />
+          <button id="submit-score-btn">Submit Score${isGoogleUser ? ' (Verified ✓)' : ''}</button>
           <p class="submit-message" id="submit-message"></p>
         </div>
         
@@ -339,6 +371,26 @@ FirebaseLeaderboardManager.prototype.showLeaderboardModal = function (currentSco
   var modalContainer = document.createElement('div');
   modalContainer.innerHTML = modalHTML;
   container.appendChild(modalContainer);
+
+  // Google Sign-In button handler
+  if (!isGoogleUser) {
+    var googleSignInBtn = document.getElementById('modal-google-signin');
+    if (googleSignInBtn) {
+      googleSignInBtn.addEventListener('click', function () {
+        signInWithGoogle(); // Defined in firebase_config.js
+
+        // Wait for auth state change, then update modal
+        var unsubscribe = window.auth.onAuthStateChanged(function (newUser) {
+          if (newUser && !newUser.isAnonymous) {
+            // Update the modal with Google user info
+            modalContainer.remove();
+            self.showLeaderboardModal(currentScore, turnCount, gameStart, grid, grids, timeStamps, scoreStamps);
+            unsubscribe(); // Stop listening
+          }
+        });
+      });
+    }
+  }
 
   var nameInput = document.getElementById('player-name');
   nameInput.addEventListener('keydown', function (e) {
@@ -374,7 +426,8 @@ FirebaseLeaderboardManager.prototype.showLeaderboardModal = function (currentSco
         messageEl.textContent = 'Failed: ' + error.message;
         messageEl.style.color = '#ed5565';
       } else {
-        messageEl.textContent = 'Score submitted successfully!';
+        var verifiedText = (window.auth.currentUser && !window.auth.currentUser.isAnonymous) ? ' (Verified ✓)' : '';
+        messageEl.textContent = 'Score submitted successfully!' + verifiedText;
         messageEl.style.color = '#a0d468';
 
         setTimeout(function () {
@@ -429,7 +482,7 @@ FirebaseLeaderboardManager.prototype.createPermanentLeaderboard = function () {
   });
 
   // Listen for real-time updates
-  this.onLeaderboardUpdate(function() {
+  this.onLeaderboardUpdate(function () {
     self.updatePermanentLeaderboard();
   });
 };
@@ -462,10 +515,13 @@ FirebaseLeaderboardManager.prototype.updatePermanentLeaderboard = function () {
         formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }
 
+      // Add verified badge for Google users
+      var verifiedBadge = entry.verified ? ' <span class="verified-badge" title="Verified with Google">✓</span>' : '';
+
       html += `
         <li>
           <span class="rank">${medal}</span>
-          <span class="player-name">${entry.name}</span>
+          <span class="player-name">${entry.name}${verifiedBadge}</span>
           <span class="player-score">${entry.score}</span>
           <span class="player-timestamp">${formattedDate}</span>
         </li>
@@ -493,6 +549,7 @@ FirebaseLeaderboardManager.prototype.showAllScoresModal = function () {
         <div class="filter-controls">
           <button class="filter-btn active" data-sort="score">Highest Score</button>
           <button class="filter-btn" data-sort="recent">Most Recent</button>
+          <button class="filter-btn" data-sort="verified">Verified Only</button>
         </div>
         
         <div id="all-scores-list" class="all-scores-list">
@@ -541,7 +598,14 @@ FirebaseLeaderboardManager.prototype.showAllScoresModal = function () {
 
     var uniqueScores = Object.values(bestScores);
 
-    if (sortMode === 'score') {
+    // Filter verified if needed
+    if (sortMode === 'verified') {
+      uniqueScores = uniqueScores.filter(function (entry) {
+        return entry.verified === true;
+      });
+    }
+
+    if (sortMode === 'score' || sortMode === 'verified') {
       uniqueScores.sort(function (a, b) { return b.score - a.score; });
     } else {
       uniqueScores.sort(function (a, b) {
@@ -562,10 +626,12 @@ FirebaseLeaderboardManager.prototype.showAllScoresModal = function () {
         formattedDate = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       }
 
+      var verifiedBadge = entry.verified ? ' <span class="verified-badge" title="Verified with Google">✓</span>' : '';
+
       html += `
         <li>
           <span class="player-info">
-            <span class="player-name">${entry.name}</span>
+            <span class="player-name">${entry.name}${verifiedBadge}</span>
             <span class="player-timestamp">${formattedDate}</span>
           </span>
           <span class="player-score">${entry.score}</span>
@@ -576,9 +642,9 @@ FirebaseLeaderboardManager.prototype.showAllScoresModal = function () {
 
     document.getElementById('all-scores-list').innerHTML = html;
 
-    document.getElementById('page-info').textContent = 'Page ' + currentPage + ' of ' + totalPages;
+    document.getElementById('page-info').textContent = 'Page ' + currentPage + ' of ' + (totalPages || 1);
     document.getElementById('prev-page').disabled = currentPage === 1;
-    document.getElementById('next-page').disabled = currentPage === totalPages;
+    document.getElementById('next-page').disabled = currentPage === totalPages || totalPages === 0;
   }
 
   var filterBtns = modalContainer.querySelectorAll('.filter-btn');
