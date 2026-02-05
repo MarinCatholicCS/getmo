@@ -49,7 +49,7 @@ FirebaseLeaderboardManager.prototype.validateGameData = function (score, turns, 
   // Check first move delay
   if (timeStamps && timeStamps.length > 1) {
     const firstMoveDelay = new Date(timeStamps[1]).getTime() - gameStartTime;
-    if (firstMoveDelay > 60 * 60 * 1000) { // 60 minutes.
+    if (firstMoveDelay > 60 * 60 * 1000) { // 60 minutes
       return { valid: false, message: 'Suspicious delay detected' };
     }
   }
@@ -125,7 +125,13 @@ FirebaseLeaderboardManager.prototype.validateGameData = function (score, turns, 
     return { valid: false, message: 'Timestamp mismatch' };
   }
 
-
+  // Check for reasonable time progression (no time travel, no impossible speeds)
+  for (let i = 1; i < timeStamps.length; i++) {
+    const timeDiff = new Date(timeStamps[i]).getTime() - new Date(timeStamps[i - 1]).getTime();
+    if (timeDiff < 0 || timeDiff < 50) { // Minimum 50ms per move (humanly impossible to go faster)
+      return { valid: false, message: 'Impossible move speed' };
+    }
+  }
 
   // Check for suspicious score/time ratio
   const gameDuration = (now - gameStartTime) / 1000 / 60; // in minutes
@@ -371,14 +377,39 @@ FirebaseLeaderboardManager.prototype.showLeaderboardModal = function (currentSco
     var googleSignInBtn = document.getElementById('modal-google-signin');
     if (googleSignInBtn) {
       googleSignInBtn.addEventListener('click', function () {
+        var messageEl = document.getElementById('submit-message');
+        messageEl.textContent = 'Signing in with Google...';
+        messageEl.style.color = '#776e65';
+
         signInWithGoogle(); // Defined in firebase_config.js
 
-        // Wait for auth state change, then update modal
+        // Wait for auth state change, then update the form (not the whole modal)
         var unsubscribe = window.auth.onAuthStateChanged(function (newUser) {
           if (newUser && !newUser.isAnonymous) {
-            // Update the modal with Google user info
-            modalContainer.remove();
-            self.showLeaderboardModal(currentScore, turnCount, gameStart, grid, grids, timeStamps, scoreStamps);
+            // Update just the form, not recreate the modal
+            var nameInput = document.getElementById('player-name');
+            var submitBtn = document.getElementById('submit-score-btn');
+            var googleSection = document.querySelector('.google-signin-section');
+            var divider = document.querySelector('.divider');
+
+            // Remove Google sign-in section and divider
+            if (googleSection) googleSection.remove();
+            if (divider) divider.remove();
+
+            // Update name input with Google account name
+            if (nameInput) {
+              nameInput.value = newUser.displayName || newUser.email.split('@')[0];
+            }
+
+            // Update submit button text
+            if (submitBtn) {
+              submitBtn.textContent = 'Submit Score (Verified ✓)';
+            }
+
+            // Update message
+            messageEl.textContent = 'Signed in with Google! ✓';
+            messageEl.style.color = '#a0d468';
+
             unsubscribe(); // Stop listening
           }
         });
