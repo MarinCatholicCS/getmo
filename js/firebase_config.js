@@ -58,7 +58,7 @@ function updateAuthUI(user) {
     authContainer.innerHTML = `
       <button id="google-signin-btn" class="auth-button">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-        Sign in with Google
+        Must sign in with Non-School email to submit a score
       </button>
     `;
 
