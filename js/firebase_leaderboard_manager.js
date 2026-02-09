@@ -42,7 +42,7 @@ FirebaseLeaderboardManager.prototype.validateGameData = function(score, turns, g
   const gameStartTime = new Date(gameStart).getTime();
   
   // Check if game start time is reasonable (not in future, not too old)
-  if (gameStartTime > now || now - gameStartTime > 24 * 60 * 60 * 1000) {
+  if (gameStartTime > now) {
     return { valid: false, message: 'Invalid game start time' };
   }
 
